@@ -24,7 +24,7 @@ public class WeatherApiClientImpl implements WeatherApiClient {
 
     @Override
     public WeatherApiResponseDto getCurrentWeather(String location) {
-        String url = UriComponentsBuilder.fromHttpUrl(baseUrl + "/current.json")
+        String url = UriComponentsBuilder.fromUriString(baseUrl + "/current.json")
                 .queryParam("key", apiKey)
                 .queryParam("q", location)
                 .queryParam("aqi", "no")

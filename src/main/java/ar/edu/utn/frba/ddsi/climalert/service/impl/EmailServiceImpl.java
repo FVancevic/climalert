@@ -5,12 +5,10 @@ import ar.edu.utn.frba.ddsi.climalert.service.EmailService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 
-import jakarta.mail.MessagingException;
-import jakarta.mail.internet.MimeMessage;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
@@ -32,29 +30,14 @@ public class EmailServiceImpl implements EmailService {
 
     @Override
     public void sendAlertEmail(WeatherRecord record) {
-        String subject = buildSubject(record);
-        String body = buildEmailBody(record);
-
-        for (String recipient : recipients) {
-            try {
-                sendEmail(recipient, subject, body);
-                log.info("Correo de alerta enviado a: {}", recipient);
-            } catch (MessagingException e) {
-                log.error("Error al enviar correo a {}: {}", recipient, e.getMessage(), e);
-            }
-        }
-    }
-
-    private void sendEmail(String to, String subject, String htmlBody) throws MessagingException {
-        MimeMessage message = mailSender.createMimeMessage();
-        MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
-
-        helper.setFrom(fromEmail);
-        helper.setTo(to);
-        helper.setSubject(subject);
-        helper.setText(htmlBody, true);
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setFrom(fromEmail);
+        message.setTo(recipients.toArray(new String[0]));
+        message.setSubject(buildSubject(record));
+        message.setText(buildBody(record));
 
         mailSender.send(message);
+        log.info("Correos de alerta enviados a: {}", recipients);
     }
 
     private String buildSubject(WeatherRecord record) {
@@ -62,67 +45,27 @@ public class EmailServiceImpl implements EmailService {
                 record.getCity(), record.getTemperature(), record.getHumidity());
     }
 
-    private String buildEmailBody(WeatherRecord record) {
+    private String buildBody(WeatherRecord record) {
         return """
-                <!DOCTYPE html>
-                <html lang="es">
-                <head>
-                    <meta charset="UTF-8">
-                    <style>
-                        body { font-family: Arial, sans-serif; color: #333; }
-                        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-                        .header { background-color: #c0392b; color: white; padding: 20px; border-radius: 8px 8px 0 0; text-align: center; }
-                        .header h1 { margin: 0; font-size: 24px; }
-                        .content { background-color: #f9f9f9; padding: 20px; border: 1px solid #ddd; }
-                        .alert-box { background-color: #fdecea; border: 2px solid #c0392b; border-radius: 6px; padding: 15px; margin-bottom: 20px; }
-                        .data-table { width: 100%%; border-collapse: collapse; margin-top: 15px; }
-                        .data-table th { background-color: #2c3e50; color: white; padding: 10px; text-align: left; }
-                        .data-table td { padding: 10px; border-bottom: 1px solid #ddd; }
-                        .data-table tr:nth-child(even) { background-color: #ecf0f1; }
-                        .critical { color: #c0392b; font-weight: bold; }
-                        .footer { background-color: #2c3e50; color: #aaa; padding: 15px; text-align: center; font-size: 12px; border-radius: 0 0 8px 8px; }
-                    </style>
-                </head>
-                <body>
-                    <div class="container">
-                        <div class="header">
-                            <h1>⚠ ALERTA CLIMÁTICA - CLIMALERT</h1>
-                        </div>
-                        <div class="content">
-                            <div class="alert-box">
-                                <strong>Se han detectado condiciones climáticas críticas:</strong>
-                                <ul>
-                                    <li>Temperatura superior a 35°C</li>
-                                    <li>Humedad superior a 60%%</li>
-                                </ul>
-                            </div>
+                ALERTA CLIMÁTICA - CLIMALERT
+                ==============================
+                Se detectaron condiciones críticas (temp > 35°C y humedad > 60%%).
 
-                            <h3>Detalle completo del clima</h3>
-                            <table class="data-table">
-                                <tr><th colspan="2">Información de ubicación</th></tr>
-                                <tr><td>Ciudad</td><td>%s, %s</td></tr>
-                                <tr><td>Fecha y hora del registro</td><td>%s</td></tr>
+                Ubicación : %s, %s
+                Fecha/hora: %s
 
-                                <tr><th colspan="2">Condiciones actuales</th></tr>
-                                <tr><td>Condición</td><td>%s</td></tr>
-                                <tr><td>Temperatura</td><td class="critical">%.1f°C</td></tr>
-                                <tr><td>Sensación térmica</td><td>%.1f°C</td></tr>
-                                <tr><td>Humedad</td><td class="critical">%d%%</td></tr>
-                                <tr><td>Viento</td><td>%.1f km/h %s</td></tr>
-                                <tr><td>Presión</td><td>%.1f hPa</td></tr>
-                                <tr><td>Precipitaciones</td><td>%.1f mm</td></tr>
-                                <tr><td>Nubosidad</td><td>%d%%</td></tr>
-                                <tr><td>Visibilidad</td><td>%.1f km</td></tr>
-                                <tr><td>Índice UV</td><td>%.1f</td></tr>
-                            </table>
-                        </div>
-                        <div class="footer">
-                            <p>Climalert - Sistema de monitoreo climático automático | UTN FRBA - DDS</p>
-                            <p>Este es un correo automático, por favor no responder.</p>
-                        </div>
-                    </div>
-                </body>
-                </html>
+                --- Condiciones actuales ---
+                Condición      : %s
+                Temperatura    : %.1f°C (sensación: %.1f°C)
+                Humedad        : %d%%
+                Viento         : %.1f km/h %s
+                Presión        : %.1f hPa
+                Precipitaciones: %.1f mm
+                Nubosidad      : %d%%
+                Visibilidad    : %.1f km
+                Índice UV      : %.1f
+
+                Este es un correo automático de Climalert - UTN FRBA DDS.
                 """.formatted(
                 record.getCity(), record.getCountry(),
                 record.getRecordedAt() != null ? record.getRecordedAt().format(FORMATTER) : "N/A",

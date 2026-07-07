@@ -84,7 +84,7 @@ public class AlertServiceImpl implements AlertService {
             log.error("Error al enviar correos de alerta: {}", e.getMessage(), e);
         } finally {
             weatherAlertRepository.save(alert);
-            log.info("Alerta registrada en la base de datos");
+            log.info("Alerta registrada en memoria");
         }
     }
 }

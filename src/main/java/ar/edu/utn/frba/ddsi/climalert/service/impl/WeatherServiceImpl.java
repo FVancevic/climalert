@@ -1,10 +1,9 @@
 package ar.edu.utn.frba.ddsi.climalert.service.impl;
 
 import ar.edu.utn.frba.ddsi.climalert.client.WeatherApiClient;
-import ar.edu.utn.frba.ddsi.climalert.dto.CurrentDto;
-import ar.edu.utn.frba.ddsi.climalert.dto.LocationDto;
 import ar.edu.utn.frba.ddsi.climalert.dto.WeatherApiResponseDto;
 import ar.edu.utn.frba.ddsi.climalert.entity.WeatherRecord;
+import ar.edu.utn.frba.ddsi.climalert.mapper.WeatherRecordMapper;
 import ar.edu.utn.frba.ddsi.climalert.repository.WeatherRecordRepository;
 import ar.edu.utn.frba.ddsi.climalert.service.WeatherService;
 import lombok.RequiredArgsConstructor;
@@ -12,7 +11,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDateTime;
 import java.util.Optional;
 
 @Slf4j
@@ -22,6 +20,7 @@ public class WeatherServiceImpl implements WeatherService {
 
     private final WeatherApiClient weatherApiClient;
     private final WeatherRecordRepository weatherRecordRepository;
+    private final WeatherRecordMapper weatherRecordMapper;
 
     @Value("${climalert.location}")
     private String location;
@@ -37,7 +36,7 @@ public class WeatherServiceImpl implements WeatherService {
                 return;
             }
 
-            WeatherRecord record = mapToWeatherRecord(response);
+            WeatherRecord record = weatherRecordMapper.toWeatherRecord(response);
             weatherRecordRepository.save(record);
             log.info("Registro climático guardado: temp={}°C, humedad={}%",
                     record.getTemperature(), record.getHumidity());
@@ -50,28 +49,5 @@ public class WeatherServiceImpl implements WeatherService {
     @Override
     public Optional<WeatherRecord> getLatestRecord() {
         return weatherRecordRepository.findTopByOrderByRecordedAtDesc();
-    }
-
-    private WeatherRecord mapToWeatherRecord(WeatherApiResponseDto response) {
-        LocationDto loc = response.getLocation();
-        CurrentDto cur = response.getCurrent();
-
-        return WeatherRecord.builder()
-                .city(loc.getName())
-                .country(loc.getCountry())
-                .temperature(cur.getTempC())
-                .feelsLike(cur.getFeelsLikeC())
-                .humidity(cur.getHumidity())
-                .windKph(cur.getWindKph())
-                .windDir(cur.getWindDir())
-                .pressureMb(cur.getPressureMb())
-                .precipMm(cur.getPrecipMm())
-                .cloud(cur.getCloud())
-                .uv(cur.getUv())
-                .visKm(cur.getVisKm())
-                .conditionText(cur.getCondition() != null ? cur.getCondition().getText() : null)
-                .conditionIcon(cur.getCondition() != null ? cur.getCondition().getIcon() : null)
-                .recordedAt(LocalDateTime.now())
-                .build();
     }
 }
